@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="description" content="王语昊作品集——以翻页方式浏览 UI、UX、建筑、竞赛与落地设计作品。">
+  <title>作品集</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f3adc0'/%3E%3Cpath d='M18 15h18c9 0 15 5 15 14s-6 15-16 15h-7v7H18V15Zm10 9v11h7c4 0 6-2 6-6 0-3-2-5-6-5h-7Z' fill='%23000'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --panel: #121212;
+      --line: rgba(255, 255, 255, 0.14);
+      --text: #f7f7f5;
+      --muted: #9d9d99;
+      --accent: #f3adc0;
+      --header-h: 56px;
+      --nav-h: 72px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { width: 100%; height: 100%; margin: 0; }
+
+    body {
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 8px;
+      left: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: #000;
+      background: var(--accent);
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus { transform: none; }
+
+    .app {
+      width: 100%;
+      height: 100dvh;
+      display: grid;
+      grid-template-rows: var(--header-h) minmax(0, 1fr) var(--nav-h);
+    }
+
+    .topbar,
+    .controls {
+      display: grid;
+      align-items: center;
+      border-color: var(--line);
+      background: rgba(10, 10, 10, 0.94);
+      backdrop-filter: blur(14px);
+    }
+
+    .topbar {
+      grid-template-columns: 1fr auto 1fr;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      justify-self: center;
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0.18em;
+    }
+
+    .counter {
+      justify-self: end;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: 14px;
+    }
+
+    .ghost-button,
+    .nav-button,
+    .close-button,
+    .toc-item {
+      border: 0;
+      color: inherit;
+      background: none;
+      cursor: pointer;
+    }
+
+    .ghost-button {
+      justify-self: start;
+      width: max-content;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 14px;
+    }
+
+    .ghost-button:hover,
+    .ghost-button:focus-visible,
+    .nav-button:hover:not(:disabled),
+    .nav-button:focus-visible,
+    .close-button:hover,
+    .close-button:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .viewer {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 14px;
+      padding: 16px 22px 14px;
+    }
+
+    .artwork-shell {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      overscroll-behavior: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(45deg, rgba(255,255,255,.022) 25%, transparent 25%) 0 0 / 20px 20px,
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,.022) 75%) 0 0 / 20px 20px,
+        #0f0f0f;
+      touch-action: pan-y;
+      scrollbar-color: var(--accent) #1b1b1b;
+    }
+
+    .artwork {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 160ms ease;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .artwork.is-ready { opacity: 1; }
+
+    .artwork-shell:not(.is-tall) .artwork {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+    }
+
+    .artwork-shell.is-tall {
+      place-items: start center;
+      background: #151515;
+    }
+
+    .artwork-shell.is-tall .artwork {
+      position: static;
+      width: min(100%, 1180px);
+      height: auto;
+      max-height: none;
+    }
+
+    .status {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      color: var(--muted);
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .status[hidden] { display: none; }
+
+    .spinner {
+      width: 26px;
+      height: 26px;
+      border: 2px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 700ms linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .meta {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(260px, 1.05fr);
+      gap: 28px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(20px, 2.1vw, 34px);
+      line-height: 1.16;
+      letter-spacing: -0.025em;
+    }
+
+    .description {
+      justify-self: end;
+      width: min(100%, 68ch);
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .controls {
+      grid-template-columns: 1fr minmax(120px, 260px) 1fr;
+      gap: 20px;
+      padding: 0 22px max(env(safe-area-inset-bottom), 0px);
+      border-top: 1px solid var(--line);
+    }
+
+    .nav-button {
+      min-width: 108px;
+      padding: 11px 16px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 14px;
+    }
+
+    .nav-button:first-child { justify-self: start; }
+    .nav-button:last-child { justify-self: end; }
+
+    .nav-button:disabled {
+      opacity: 0.28;
+      cursor: default;
+    }
+
+    .progress {
+      height: 2px;
+      overflow: hidden;
+      background: #303030;
+    }
+
+    .progress span {
+      display: block;
+      width: 0;
+      height: 100%;
+      background: var(--accent);
+      transition: width 180ms ease;
+    }
+
+    .toc-dialog {
+      width: min(920px, calc(100vw - 28px));
+      max-height: min(86dvh, 900px);
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--text);
+      background: #111;
+      box-shadow: 0 24px 90px rgba(0,0,0,.7);
+    }
+
+    .toc-dialog::backdrop {
+      background: rgba(0,0,0,.72);
+      backdrop-filter: blur(7px);
+    }
+
+    .toc-head {
+      position: sticky;
+      z-index: 2;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #111;
+    }
+
+    .toc-head h2 { margin: 0; font-size: 19px; }
+
+    .close-button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      font-size: 20px;
+    }
+
+    .toc-scroll {
+      max-height: calc(min(86dvh, 900px) - 75px);
+      overflow: auto;
+      padding: 8px 20px 26px;
+    }
+
+    .toc-group h3 {
+      margin: 24px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .toc-list { display: grid; gap: 2px; }
+
+    .toc-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 11px 10px;
+      border-radius: 7px;
+      text-align: left;
+    }
+
+    .toc-item:hover,
+    .toc-item:focus-visible,
+    .toc-item[aria-current="page"] {
+      outline: none;
+      background: rgba(243, 173, 192, .12);
+    }
+
+    .toc-number { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .toc-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .toc-frame { color: var(--muted); font-size: 12px; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 720px) {
+      :root { --header-h: 52px; --nav-h: 68px; }
+      .topbar { padding: 0 12px; }
+      .brand { display: none; }
+      .topbar { grid-template-columns: 1fr 1fr; }
+      .viewer { gap: 10px; padding: 10px 10px 8px; }
+      .meta { grid-template-columns: 1fr; gap: 6px; }
+      h1 { font-size: clamp(18px, 5.5vw, 26px); }
+      .description { justify-self: start; font-size: 13px; line-height: 1.45; }
+      .controls { grid-template-columns: 1fr 72px 1fr; gap: 8px; padding: 0 10px max(env(safe-area-inset-bottom), 0px); }
+      .nav-button { min-width: 0; width: 100%; padding-inline: 10px; }
+      .toc-scroll { padding-inline: 10px; }
+      .toc-item { grid-template-columns: 34px minmax(0, 1fr); }
+      .toc-frame { display: none; }
+    }
+
+    @media (max-height: 680px) and (min-width: 721px) {
+      :root { --header-h: 48px; --nav-h: 60px; }
+      .viewer { gap: 8px; padding-block: 10px 8px; }
+      .meta { gap: 20px; }
+      .description { font-size: 13px; }
+      h1 { font-size: 20px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; transition-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#artwork">跳到作品</a>
+  <div class="app">
+    <header class="topbar">
+      <button class="ghost-button" id="tocButton" type="button" aria-haspopup="dialog">目录</button>
+      <div class="brand" aria-hidden="true">PORTFOLIO</div>
+      <div class="counter" id="counter" aria-label="页码">01 / 41</div>
+    </header>
+
+    <main class="viewer" id="main">
+      <div class="artwork-shell" id="artworkShell">
+        <div class="status" id="loadingStatus"><span class="spinner" aria-label="正在载入作品"></span></div>
+        <div class="status" id="errorStatus" hidden>图片载入失败，请确认 assets 文件夹与 index.html 位于同一目录。</div>
+        <img class="artwork" id="artwork" src="assets/page-01.png" alt="PORTFOLIO" draggable="false">
+      </div>
+
+      <section class="meta" aria-labelledby="pageTitle">
+        <div>
+          <p class="eyebrow" id="chapter">导览</p>
+          <h1 id="pageTitle">PORTFOLIO</h1>
+        </div>
+        <p class="description" id="description">Hello，WElcome to my portfolio</p>
+      </section>
+    </main>
+
+    <nav class="controls" aria-label="翻页控制">
+      <button class="nav-button" id="prevButton" type="button" aria-label="上一页">← 上一页</button>
+      <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+      <button class="nav-button" id="nextButton" type="button" aria-label="下一页">下一页 →</button>
+    </nav>
+  </div>
+
+  <dialog class="toc-dialog" id="tocDialog" aria-labelledby="tocTitle">
+    <div class="toc-head">
+      <h2 id="tocTitle">作品目录</h2>
+      <button class="close-button" id="closeTocButton" type="button" aria-label="关闭目录">×</button>
+    </div>
+    <div class="toc-scroll" id="tocContent"></div>
+  </dialog>
+
+  <div class="sr-only" id="announcement" aria-live="polite"></div>
+
+  <script>
+    const pages = [
+      { chapter: "导览", frame: "封面", title: "作品集", description: "欢迎浏览我的作品集。" },
+      { chapter: "导览", frame: "标语", title: "设计宣言", description: "常觉设计像52Hz的独特频率游弋，用视觉波长寻找未知信号。" },
+      { chapter: "导览", frame: "目录页", title: "目录", description: "个人简历、作品一、作品二、作品之外。点击顶部“目录”可跳转到任意页面。" },
+      { chapter: "导览", frame: "简历", title: "个人简历", description: "经历、教育、获奖、技能、软件与兴趣。" },
+      { chapter: "作品一 · HeartLink", frame: "作品1介绍", title: "基于多模态交互的重症儿童情感支持系统设计", description: "通过自然和舒缓的元素来减轻压力，为临终儿童提供尊严和关怀。" },
+      { chapter: "作品一 · HeartLink", frame: "现状", title: "现状与机遇", description: "被忽视的儿童临终关怀：国内现状与国外现状。" },
+      { chapter: "作品一 · HeartLink", frame: "市场分析", title: "临终关怀服务市场", description: "临终关怀服务市场与政策红利。" },
+      { chapter: "作品一 · HeartLink", frame: "痛点与需求", title: "痛点与需求：儿童用户", description: "重症儿童家庭的困境与需求：情感陪伴与心理支持。" },
+      { chapter: "作品一 · HeartLink", frame: "痛点与需求2", title: "痛点与需求：家长与医护人员", description: "家长用户与专业医护人员的需求。" },
+      { chapter: "作品一 · HeartLink", frame: "竞品分析", title: "竞品分析", description: "现有解决方案的局限与启发。" },
+      { chapter: "作品一 · HeartLink", frame: "解决方案", title: "HeartLink——科技温暖生命的最后一程", description: "产品框架、非线性叙事、陪伴、艺术疗愈与游戏互动。" },
+      { chapter: "作品一 · HeartLink", frame: "方案呈现", title: "方案呈现", description: "守护重症儿童的全周期：诊断期、治疗期、临终期。" },
+      { chapter: "作品一 · HeartLink", frame: "患病前期", title: "最终输出", description: "HeartLink：重症儿童及其家庭情感支持应用。" },
+      { chapter: "作品一 · HeartLink", frame: "诊断期", title: "诊断期", description: "诊断阶段的恐惧、困惑、焦虑与舒缓音乐支持。" },
+      { chapter: "作品一 · HeartLink", frame: "治疗前期", title: "治疗前期", description: "游戏和艺术活动提供情绪支持与心理缓解。" },
+      { chapter: "作品一 · HeartLink", frame: "治疗后期", title: "治疗后期", description: "为行动能力下降的儿童提供语音交互与简化沟通。" },
+      { chapter: "作品一 · HeartLink", frame: "其他界面", title: "其他界面", description: "TODO：PDF 本页未提供独立文字说明。" },
+      { chapter: "作品一 · HeartLink", frame: "家长端高保真", title: "家长端", description: "TODO：PDF 本页未提供独立文字说明。" },
+      { chapter: "作品一 · HeartLink", frame: "技术支持", title: "技术支持", description: "游戏化八角模型与模糊匹配算法。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "作品2介绍", title: "短视频成瘾的婴儿化陷阱：多模态隐喻设计研究", description: "短视频占据人们大量的时间，甚至影响睡眠。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "历史渊源", title: "历史发展", description: "2013 年以来短视频平台与使用方式的发展。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "短视频优劣势", title: "短视频优劣势", description: "短视频的优势、弊端与时间管理问题。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "用户调研", title: "用户调研", description: "用户采访、平均使用时长及相关调研内容。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "设计阶段", title: "设计阶段", description: "草图、三维模型和多模态隐喻方案。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "产品", title: "产品设计", description: "虚拟现实眼镜及相关产品形态设计。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "低保真", title: "低保真", description: "应用程序连接虚拟现实眼镜、监控短视频软件并收集身体数据。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "高保真", title: "高保真", description: "产品流、数据流、社区、交友与任务记录。" },
+      { chapter: "作品二 · 短视频成瘾", frame: "使用故事板", title: "使用故事板", description: "从短视频沉迷到使用 VR 产品并减少观看时间的流程。" },
+      { chapter: "作品之外", frame: "作品2封面", title: "作品之外", description: "课程设计 / 竞赛设计 / 落地设计。" },
+      { chapter: "作品之外", frame: "建筑设计总览", title: "建筑设计总览", description: "多层养老、徐渭艺术馆、渗景博物馆、小区规划、城市规划、高层办公设计与码头新生。" },
+      { chapter: "作品之外", frame: "高层设计", title: "高层设计", description: "TODO：Figma 画板内未发现独立文字说明。", tall: true },
+      { chapter: "作品之外", frame: "场地设计", title: "场地设计", description: "TODO：Figma 画板内未发现独立文字说明。", tall: true },
+      { chapter: "作品之外", frame: "养老建筑设计", title: "养老建筑设计", description: "TODO：Figma 画板内未发现独立文字说明。" },
+      { chapter: "作品之外", frame: "居住区设计", title: "居住区设计", description: "TODO：Figma 画板内未发现独立文字说明。" },
+      { chapter: "作品之外", frame: "城市设计", title: "城市设计", description: "TODO：Figma 画板内未发现独立文字说明。", tall: true },
+      { chapter: "作品之外", frame: "建筑事务所设计", title: "建筑事务所设计", description: "TODO：Figma 画板内未发现独立文字说明。", tall: true },
+      { chapter: "作品之外", frame: "竞赛设计", title: "竞赛设计", description: "“遇稻”、大地屋顶、“半日闲居”三个方案。" },
+      { chapter: "作品之外", frame: "落地设计", title: "落地设计", description: "Floor-level living；室内建模、渲染、摄影等工作。" },
+      { chapter: "作品之外", frame: "落地设计2", title: "落地设计 2", description: "现场测量、建模渲染与后期宣传。" },
+      { chapter: "作品之外", frame: "课程设计", title: "课程设计", description: "TODO：Figma 画板内未发现独立文字说明。" },
+      { chapter: "作品之外", frame: "产品设计", title: "产品设计", description: "TODO：Figma 画板内未发现独立文字说明。" }
+    ].map((page, index) => ({ ...page, src: `assets/page-${String(index + 1).padStart(2, "0")}.png` }));
+
+    const artwork = document.getElementById("artwork");
+    const artworkShell = document.getElementById("artworkShell");
+    const loadingStatus = document.getElementById("loadingStatus");
+    const errorStatus = document.getElementById("errorStatus");
+    const chapter = document.getElementById("chapter");
+    const pageTitle = document.getElementById("pageTitle");
+    const description = document.getElementById("description");
+    const counter = document.getElementById("counter");
+    const progressBar = document.getElementById("progressBar");
+    const prevButton = document.getElementById("prevButton");
+    const nextButton = document.getElementById("nextButton");
+    const tocButton = document.getElementById("tocButton");
+    const tocDialog = document.getElementById("tocDialog");
+    const closeTocButton = document.getElementById("closeTocButton");
+    const tocContent = document.getElementById("tocContent");
+    const announcement = document.getElementById("announcement");
+
+    let currentIndex = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    function pageNumber(index) {
+      return String(index + 1).padStart(2, "0");
+    }
+
+    function indexFromHash() {
+      const match = location.hash.match(/^#page-(\d+)$/);
+      if (!match) return 0;
+      return Math.min(Math.max(Number(match[1]) - 1, 0), pages.length - 1);
+    }
+
+    function setPage(index) {
+      const safeIndex = Math.min(Math.max(index, 0), pages.length - 1);
+      const nextHash = `#page-${safeIndex + 1}`;
+      if (location.hash === nextHash) {
+        render(safeIndex);
+      } else {
+        location.hash = nextHash;
+      }
+    }
+
+    function render(index) {
+      currentIndex = index;
+      const page = pages[index];
+
+      artwork.classList.remove("is-ready");
+      loadingStatus.hidden = false;
+      errorStatus.hidden = true;
+      artworkShell.classList.toggle("is-tall", Boolean(page.tall));
+      artworkShell.scrollTop = 0;
+      artworkShell.scrollLeft = 0;
+      artwork.alt = `${page.title}，Figma 画板：${page.frame}`;
+      artwork.src = page.src;
+
+      chapter.textContent = page.chapter;
+      pageTitle.textContent = page.title;
+      description.textContent = page.description;
+      counter.textContent = `${pageNumber(index)} / ${pages.length}`;
+      counter.setAttribute("aria-label", `第 ${index + 1} 页，共 ${pages.length} 页`);
+      progressBar.style.width = `${((index + 1) / pages.length) * 100}%`;
+      prevButton.disabled = index === 0;
+      nextButton.disabled = index === pages.length - 1;
+      document.title = `${page.title} · 作品集`;
+      announcement.textContent = `第 ${index + 1} 页：${page.title}`;
+
+      document.querySelectorAll(".toc-item").forEach((item) => {
+        const active = Number(item.dataset.index) === index;
+        if (active) item.setAttribute("aria-current", "page");
+        else item.removeAttribute("aria-current");
+      });
+
+      [index - 1, index + 1].forEach((nearby) => {
+        if (pages[nearby]) {
+          const preload = new Image();
+          preload.src = pages[nearby].src;
+        }
+      });
+    }
+
+    function buildToc() {
+      const groups = new Map();
+      pages.forEach((page, index) => {
+        if (!groups.has(page.chapter)) groups.set(page.chapter, []);
+        groups.get(page.chapter).push({ page, index });
+      });
+
+      const fragment = document.createDocumentFragment();
+      groups.forEach((items, groupName) => {
+        const section = document.createElement("section");
+        section.className = "toc-group";
+
+        const heading = document.createElement("h3");
+        heading.textContent = groupName;
+        section.appendChild(heading);
+
+        const list = document.createElement("div");
+        list.className = "toc-list";
+
+        items.forEach(({ page, index }) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "toc-item";
+          button.dataset.index = String(index);
+          button.innerHTML = `<span class="toc-number">${pageNumber(index)}</span><span class="toc-title"></span><span class="toc-frame"></span>`;
+          button.querySelector(".toc-title").textContent = page.title;
+          button.querySelector(".toc-frame").textContent = page.frame;
+          button.addEventListener("click", () => {
+            tocDialog.close();
+            setPage(index);
+          });
+          list.appendChild(button);
+        });
+
+        section.appendChild(list);
+        fragment.appendChild(section);
+      });
+      tocContent.appendChild(fragment);
+    }
+
+    artwork.addEventListener("load", () => {
+      loadingStatus.hidden = true;
+      errorStatus.hidden = true;
+      artwork.classList.add("is-ready");
+    });
+
+    artwork.addEventListener("error", () => {
+      loadingStatus.hidden = true;
+      errorStatus.hidden = false;
+      artwork.classList.remove("is-ready");
+    });
+
+    prevButton.addEventListener("click", () => setPage(currentIndex - 1));
+    nextButton.addEventListener("click", () => setPage(currentIndex + 1));
+
+    tocButton.addEventListener("click", () => {
+      if (typeof tocDialog.showModal === "function") tocDialog.showModal();
+      else tocDialog.setAttribute("open", "");
+      const activeItem = tocDialog.querySelector('[aria-current="page"]');
+      activeItem?.scrollIntoView({ block: "center" });
+    });
+
+    closeTocButton.addEventListener("click", () => tocDialog.close());
+    tocDialog.addEventListener("click", (event) => {
+      if (event.target === tocDialog) tocDialog.close();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (tocDialog.open) return;
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setPage(currentIndex - 1);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setPage(currentIndex + 1);
+      }
+    });
+
+    artworkShell.addEventListener("touchstart", (event) => {
+      const touch = event.changedTouches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }, { passive: true });
+
+    artworkShell.addEventListener("touchend", (event) => {
+      const touch = event.changedTouches[0];
+      const dx = touch.clientX - touchStartX;
+      const dy = touch.clientY - touchStartY;
+      if (Math.abs(dx) < 52 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+      setPage(currentIndex + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+
+    window.addEventListener("hashchange", () => render(indexFromHash()));
+
+    buildToc();
+    if (!location.hash.match(/^#page-\d+$/)) {
+      history.replaceState(null, "", "#page-1");
+    }
+    render(indexFromHash());
+  </script>
+</body>
+</html>
